@@ -19,6 +19,18 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice-writer libreoffice-calc poppler-utils
+
+      - name: Verify system dependencies
+        run: |
+          which soffice
+          soffice --version
+          which pdftoppm
+          pdftoppm -v 2>&1 || true
+
       - name: Install dependencies
         run: npm ci
 
