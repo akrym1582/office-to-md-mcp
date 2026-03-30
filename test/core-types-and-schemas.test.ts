@@ -81,9 +81,7 @@ describe("tool schemas", () => {
   it("applies defaults for extraction and capability schemas", () => {
     expect(ExtractExcelTextSchema.parse({ filePath: "book.xlsx" })).toEqual({
       filePath: "book.xlsx",
-      format: "markdown",
-      includeFormulas: false,
-      includeMergedCells: false,
+      dpi: 150,
     });
     expect(ExtractWordTextSchema.parse({ filePath: "doc.docx" })).toEqual({
       filePath: "doc.docx",

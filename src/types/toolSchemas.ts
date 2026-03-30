@@ -23,9 +23,8 @@ export const ConvertPdfToImagesSchema = z.object({
 
 export const ExtractExcelTextSchema = z.object({
   filePath: z.string().describe("Path to the Excel file (.xlsx, .xls)"),
-  format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
-  includeFormulas: z.boolean().optional().default(false).describe("Include cell formulas"),
-  includeMergedCells: z.boolean().optional().default(false).describe("Include merged cell metadata"),
+  dpi: z.number().int().min(72).max(600).optional().default(150).describe("Rendering DPI for intermediate images"),
+  sheetNames: z.array(z.string()).optional().describe("Specific sheet names to render"),
 });
 
 export const ExtractWordTextSchema = z.object({
