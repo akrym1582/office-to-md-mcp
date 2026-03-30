@@ -15,24 +15,24 @@ A TypeScript **Model Context Protocol (MCP) server** that converts Excel, Word, 
 | `extract_word_text` | `.docx` | Plain text or Markdown |
 | `get_capabilities` | — | Runtime dependency status |
 
-### `extract_excel_text` の変換パイプライン
+### `extract_excel_text` Conversion Pipeline
 
-`extract_excel_text` は以下のパイプラインで Excel ファイルを Markdown に変換します:
+`extract_excel_text` converts Excel files to Markdown through the following image-based pipeline:
 
 ```
 Excel (.xlsx/.xls)
-  → 印刷範囲を適切に補正して PDF に変換 (Python UNO / LibreOffice)
-    → PDF を PNG 画像に変換 (pdftoppm / ImageMagick)
-      → 画像を Markdown に変換 (GitHub Copilot SDK — gpt-5.4-mini)
+  → Adjust print area and convert to PDF (Python UNO / LibreOffice)
+    → Render PDF pages as PNG images (pdftoppm / ImageMagick)
+      → Convert images to Markdown (GitHub Copilot SDK — gpt-5.4-mini)
 ```
 
-この方式により、セルのデータだけでなく、図形・画像・複雑なレイアウトも含めて高精度に Markdown 化できます。
+This approach preserves not only cell data but also shapes, embedded images, and complex layouts with high fidelity.
 
-> **⚠️ GitHub Copilot Premium Request について**
+> **⚠️ GitHub Copilot Premium Requests**
 >
-> `extract_excel_text` は画像→Markdown 変換に GitHub Copilot SDK の **gpt-5.4-mini** モデルを使用します。
-> このため、ツール実行時に **GitHub Copilot の Premium Request** が消費されます。
-> ページ数が多いファイルほどリクエスト数が増加する点にご注意ください。
+> `extract_excel_text` uses GitHub Copilot SDK's **gpt-5.4-mini** model for image-to-Markdown conversion.
+> Each tool invocation consumes **GitHub Copilot Premium Requests**.
+> The number of requests increases with the number of pages in the workbook.
 
 ---
 
@@ -44,7 +44,7 @@ Excel (.xlsx/.xls)
 | [LibreOffice](https://www.libreoffice.org/) (`soffice`) | Excel/Word → PDF | For image conversion |
 | [poppler-utils](https://poppler.freedesktop.org/) (`pdftoppm`) | PDF → PNG | For image conversion |
 | Python 3 | Excel UNO helper | For best Excel rendering |
-| `GITHUB_TOKEN` env var | Copilot SDK auth | `extract_excel_text` に必須 |
+| `GITHUB_TOKEN` env var | Copilot SDK auth | Required for `extract_excel_text` |
 
 ### Install system dependencies (Ubuntu/Debian)
 
@@ -147,7 +147,7 @@ Renders each PDF page as a PNG image.
 
 ### `extract_excel_text`
 
-Excel ファイルを画像ベースのパイプラインで Markdown に変換します（Excel → 印刷範囲補正 → PDF → 画像 → Markdown）。図形・画像・複雑なレイアウトにも対応します。`GITHUB_TOKEN` が必須です。
+Converts an Excel workbook to Markdown via an image-based pipeline (Excel → print-area adjustment → PDF → images → Markdown). Handles shapes, embedded images, and complex layouts. Requires `GITHUB_TOKEN`.
 
 ```json
 {
@@ -168,7 +168,7 @@ Response:
 }
 ```
 
-> 画像→Markdown 変換には GitHub Copilot SDK（デフォルト: `gpt-5.4-mini`）を使用するため、Premium Request が消費されます。
+> Image-to-Markdown conversion uses GitHub Copilot SDK (default model: `gpt-5.4-mini`) and consumes Premium Requests.
 
 ---
 
