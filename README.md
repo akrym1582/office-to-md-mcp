@@ -13,7 +13,7 @@ A TypeScript **Model Context Protocol (MCP) server** that converts Excel, Word, 
 | `convert_pdf_to_images` | `.pdf` | PNG images per page |
 | `extract_excel_text` | `.xlsx` / `.xls` | Markdown table or JSON |
 | `extract_word_text` | `.docx` | Plain text or Markdown |
-| `convert_pdf_images_to_markdown` | `.pdf` | Markdown via GitHub Copilot CLI |
+| `convert_pdf_images_to_markdown` | `.pdf` | Markdown via GitHub Copilot SDK |
 | `render_document` | any above | Images + text/Markdown unified |
 | `get_capabilities` | — | Runtime dependency status |
 
@@ -27,8 +27,7 @@ A TypeScript **Model Context Protocol (MCP) server** that converts Excel, Word, 
 | [LibreOffice](https://www.libreoffice.org/) (`soffice`) | Excel/Word → PDF | For image conversion |
 | [poppler-utils](https://poppler.freedesktop.org/) (`pdftoppm`) | PDF → PNG | For image conversion |
 | Python 3 | Excel UNO helper | For best Excel rendering |
-| [GitHub CLI](https://cli.github.com/) (`gh`) | PDF → Markdown | Optional |
-| `GITHUB_TOKEN` env var | Copilot CLI auth | Optional |
+| `GITHUB_TOKEN` env var | Copilot SDK auth | Optional |
 
 ### Install system dependencies (Ubuntu/Debian)
 
@@ -65,7 +64,8 @@ The server communicates over **stdio** using the MCP protocol.
 
 | Variable | Description |
 |---|---|
-| `GITHUB_TOKEN` | GitHub personal access token for Copilot CLI Markdown conversion |
+| `GITHUB_TOKEN` | GitHub personal access token for Copilot SDK Markdown conversion |
+| `COPILOT_MODEL` | Copilot model to use for image-to-Markdown conversion (default: `gpt-5.4-mini`) |
 | `LOG_LEVEL` | Log verbosity: `debug` \| `info` (default) \| `warn` \| `error` |
 
 ---
@@ -167,7 +167,7 @@ Extracts text from a `.docx` file using [mammoth](https://github.com/mwilliamson
 
 ### `convert_pdf_images_to_markdown`
 
-Converts PDF pages to Markdown using GitHub Copilot CLI (requires `gh` on PATH and `GITHUB_TOKEN`).
+Converts PDF pages to Markdown using the GitHub Copilot SDK (requires `GITHUB_TOKEN`).
 
 ```json
 {
@@ -183,11 +183,11 @@ Response:
 {
   "sourceType": "pdf",
   "markdown": "## Page 1\n\n...",
-  "provider": "github-copilot-cli"
+  "provider": "github-copilot-sdk"
 }
 ```
 
-If the CLI or token is unavailable, `provider` will be `"unavailable"` and no error is thrown.
+If the token is unavailable, `provider` will be `"unavailable"` and no error is thrown.
 
 ---
 
@@ -226,7 +226,6 @@ Example response:
   "unoHelper": true,
   "pdfRenderer": true,
   "pdfRendererTool": "pdftoppm",
-  "copilotCli": false,
   "githubToken": false
 }
 ```
@@ -308,7 +307,6 @@ npm run lint
 | `PDF_RENDER_FAILED` | PDF rendering failed |
 | `EXCEL_TEXT_EXTRACTION_FAILED` | ExcelJS read failure |
 | `WORD_TEXT_EXTRACTION_FAILED` | mammoth extraction failure |
-| `COPILOT_CLI_NOT_FOUND` | `gh` CLI not on PATH |
 | `GITHUB_TOKEN_MISSING` | `GITHUB_TOKEN` env var not set |
 | `COPILOT_MARKDOWN_FAILED` | Copilot CLI returned an error |
 | `INVALID_TOOL_INPUT` | Zod schema validation failed |
@@ -323,8 +321,8 @@ Install LibreOffice and ensure `soffice` is on your `PATH`.
 **pdftoppm not found**  
 Install `poppler-utils` (`apt-get install poppler-utils` or `brew install poppler`).
 
-**Copilot CLI unavailable**  
-Install [GitHub CLI](https://cli.github.com/) and set `GITHUB_TOKEN` in your environment.
+**Copilot SDK unavailable**  
+Set `GITHUB_TOKEN` in your environment. The model used can be customised via the `COPILOT_MODEL` environment variable (default: `gpt-5.4-mini`).
 
 **Excel conversion uses LibreOffice CLI instead of UNO**  
 Python 3 must be on `PATH` and `python/excel_to_pdf_uno.py` must exist alongside the server. Run `get_capabilities` to confirm.
