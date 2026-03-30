@@ -11,11 +11,28 @@ A TypeScript **Model Context Protocol (MCP) server** that converts Excel, Word, 
 | `convert_excel_to_images` | `.xlsx` / `.xls` | PNG images per page |
 | `convert_word_to_images` | `.docx` / `.doc` | PNG images per page |
 | `convert_pdf_to_images` | `.pdf` | PNG images per page |
-| `extract_excel_text` | `.xlsx` / `.xls` | Markdown table or JSON |
+| `extract_excel_text` | `.xlsx` / `.xls` | Markdown (via image-based conversion) |
 | `extract_word_text` | `.docx` | Plain text or Markdown |
-| `convert_pdf_images_to_markdown` | `.pdf` | Markdown via GitHub Copilot SDK |
-| `render_document` | any above | Images + text/Markdown unified |
 | `get_capabilities` | — | Runtime dependency status |
+
+### `extract_excel_text` の変換パイプライン
+
+`extract_excel_text` は以下のパイプラインで Excel ファイルを Markdown に変換します:
+
+```
+Excel (.xlsx/.xls)
+  → 印刷範囲を適切に補正して PDF に変換 (Python UNO / LibreOffice)
+    → PDF を PNG 画像に変換 (pdftoppm / ImageMagick)
+      → 画像を Markdown に変換 (GitHub Copilot SDK — gpt-5.4-mini)
+```
+
+この方式により、セルのデータだけでなく、図形・画像・複雑なレイアウトも含めて高精度に Markdown 化できます。
+
+> **⚠️ GitHub Copilot Premium Request について**
+>
+> `extract_excel_text` は画像→Markdown 変換に GitHub Copilot SDK の **gpt-5.4-mini** モデルを使用します。
+> このため、ツール実行時に **GitHub Copilot の Premium Request** が消費されます。
+> ページ数が多いファイルほどリクエスト数が増加する点にご注意ください。
 
 ---
 
@@ -27,7 +44,7 @@ A TypeScript **Model Context Protocol (MCP) server** that converts Excel, Word, 
 | [LibreOffice](https://www.libreoffice.org/) (`soffice`) | Excel/Word → PDF | For image conversion |
 | [poppler-utils](https://poppler.freedesktop.org/) (`pdftoppm`) | PDF → PNG | For image conversion |
 | Python 3 | Excel UNO helper | For best Excel rendering |
-| `GITHUB_TOKEN` env var | Copilot SDK auth | Optional |
+| `GITHUB_TOKEN` env var | Copilot SDK auth | `extract_excel_text` に必須 |
 
 ### Install system dependencies (Ubuntu/Debian)
 
@@ -130,14 +147,13 @@ Renders each PDF page as a PNG image.
 
 ### `extract_excel_text`
 
-Extracts cell data from an Excel workbook.
+Excel ファイルを画像ベースのパイプラインで Markdown に変換します（Excel → 印刷範囲補正 → PDF → 画像 → Markdown）。図形・画像・複雑なレイアウトにも対応します。`GITHUB_TOKEN` が必須です。
 
 ```json
 {
   "filePath": "/path/to/file.xlsx",
-  "format": "markdown",
-  "includeFormulas": false,
-  "includeMergedCells": false
+  "dpi": 150,
+  "sheetNames": ["Sheet1"]
 }
 ```
 
@@ -146,9 +162,13 @@ Response:
 {
   "sourceType": "excel",
   "textFormat": "markdown",
-  "content": "## Sheet: Sheet1\n\n| Name | Age |\n| --- | --- |\n| Alice | 30 |"
+  "content": "## Page 1\n\n| Name | Age |\n| --- | --- |\n| Alice | 30 |",
+  "images": ["/tmp/excel-images-xxx/page-1.png"],
+  "pageCount": 1
 }
 ```
+
+> 画像→Markdown 変換には GitHub Copilot SDK（デフォルト: `gpt-5.4-mini`）を使用するため、Premium Request が消費されます。
 
 ---
 
@@ -162,48 +182,6 @@ Extracts text from a `.docx` file using [mammoth](https://github.com/mwilliamson
   "format": "markdown"
 }
 ```
-
----
-
-### `convert_pdf_images_to_markdown`
-
-Converts PDF pages to Markdown using the GitHub Copilot SDK (requires `GITHUB_TOKEN`).
-
-```json
-{
-  "filePath": "/path/to/file.pdf",
-  "dpi": 150,
-  "mergePages": true,
-  "preservePageHeadings": true
-}
-```
-
-Response:
-```json
-{
-  "sourceType": "pdf",
-  "markdown": "## Page 1\n\n...",
-  "provider": "github-copilot-sdk"
-}
-```
-
-If the token is unavailable, `provider` will be `"unavailable"` and no error is thrown.
-
----
-
-### `render_document`
-
-Unified tool that auto-detects file type and routes to the appropriate pipeline.
-
-```json
-{
-  "filePath": "/path/to/file.xlsx",
-  "outputMode": "all",
-  "dpi": 150
-}
-```
-
-`outputMode` options: `"images"` | `"text"` | `"markdown"` | `"all"`
 
 ---
 
@@ -242,10 +220,7 @@ Example response:
 │   │   ├── convertExcelToImages.ts
 │   │   ├── convertWordToImages.ts
 │   │   ├── convertPdfToImages.ts
-│   │   ├── extractExcelText.ts
-│   │   ├── extractWordText.ts
-│   │   ├── convertPdfImagesToMarkdown.ts
-│   │   └── renderDocument.ts
+│   │   └── extractExcelText.ts
 │   ├── services/                      # Business logic / external integrations
 │   │   ├── capabilityDetector.ts
 │   │   ├── copilotCli.ts
