@@ -1,26 +1,11 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { Octokit } from "@octokit/core";
+import { CopilotClient, approveAll } from "@github/copilot-sdk";
 import { AppError, ErrorCode } from "../types/errors.js";
 import { logger } from "../utils/logger.js";
 
 const IMAGE_PROMPT =
   "Convert this image to Markdown. Preserve all text, formatting, tables, and structure as closely as possible. Output only the Markdown content.";
-
-interface CopilotChatMessage {
-  role: string;
-  content: string;
-}
-
-interface CopilotChatChoice {
-  message: CopilotChatMessage;
-}
-
-interface CopilotChatResponse {
-  data: {
-    choices: CopilotChatChoice[];
-  };
-}
 
 export function getGithubToken(): string | null {
   return process.env.GITHUB_TOKEN ?? process.env.github_token ?? null;
@@ -46,44 +31,46 @@ export async function convertImageToMarkdown(
   });
   const base64Image = imageBuffer.toString("base64");
   const mimeType = getMimeType(imagePath);
+  const displayName = path.basename(imagePath);
 
-  const octokit = new Octokit({ auth: token });
+  const client = new CopilotClient({ githubToken: token });
+  await client.start();
 
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const response = await Promise.race([
-    octokit.request("POST /copilot/chat/completions", {
+  try {
+    const session = await client.createSession({
       model: "gpt-4o",
-      messages: [
+      onPermissionRequest: approveAll,
+    });
+
+    try {
+      const response = await session.sendAndWait(
         {
-          role: "user",
-          content: [
+          prompt: IMAGE_PROMPT,
+          attachments: [
             {
-              type: "image_url",
-              image_url: { url: `data:${mimeType};base64,${base64Image}` },
+              type: "blob",
+              data: base64Image,
+              mimeType,
+              displayName,
             },
-            { type: "text", text: IMAGE_PROMPT },
           ],
         },
-      ],
-    }),
-    new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(
-        () => reject(new AppError(ErrorCode.COPILOT_MARKDOWN_FAILED, "GitHub Copilot SDK request timed out")),
         timeoutMs
       );
-    }),
-  ]).catch((err) => {
-    if (err instanceof AppError) throw err;
-    throw new AppError(ErrorCode.COPILOT_MARKDOWN_FAILED, "GitHub Copilot SDK failed to convert image to Markdown", {
-      message: String(err),
-    });
-  }).finally(() => {
-    clearTimeout(timeoutId);
-  });
 
-  const markdown = (response as CopilotChatResponse).data?.choices?.[0]?.message?.content;
-  if (!markdown) {
-    throw new AppError(ErrorCode.COPILOT_MARKDOWN_FAILED, "No Markdown content received from GitHub Copilot");
+      if (!response?.data?.content) {
+        throw new AppError(ErrorCode.COPILOT_MARKDOWN_FAILED, "No Markdown content received from GitHub Copilot");
+      }
+      return response.data.content.trim();
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      throw new AppError(ErrorCode.COPILOT_MARKDOWN_FAILED, "GitHub Copilot SDK failed to convert image to Markdown", {
+        message: String(err),
+      });
+    } finally {
+      await session.disconnect();
+    }
+  } finally {
+    await client.stop();
   }
-  return markdown.trim();
 }

@@ -15,8 +15,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@github/copilot-sdk": "^0.2.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@octokit/core": "^7.0.6",
     "exceljs": "^4.4.0",
     "mammoth": "^1.7.0",
     "zod": "^3.22.4"
