@@ -69,7 +69,7 @@ export function createServer() {
   server.registerTool(
     "extract_excel_text",
     {
-      description: "Extract text data from an Excel workbook.",
+      description: "Extract Markdown from an Excel workbook via image-based conversion (Excel → PDF → Image → Markdown). Handles shapes, images, and complex formatting.",
       inputSchema: ExtractExcelTextSchema,
     },
     async (args: unknown) => toToolResult(await extractExcelText(args))

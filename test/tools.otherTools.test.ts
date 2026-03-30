@@ -7,8 +7,9 @@ const cleanupTempDirMock = jest.fn();
 const detectCapabilitiesMock = jest.fn();
 const convertToPdfWithLibreOfficeMock = jest.fn();
 const renderPdfToImagesMock = jest.fn();
-const extractExcelDataMock = jest.fn();
-const formatExcelAsMarkdownMock = jest.fn();
+const convertExcelToImagesMock = jest.fn();
+const convertImageToMarkdownMock = jest.fn();
+const getGithubTokenMock = jest.fn();
 
 jest.mock("../src/utils/fs.js", () => ({
   fileExists: (...args: unknown[]) => fileExistsMock(...args),
@@ -32,9 +33,13 @@ jest.mock("../src/services/pdfRenderer.js", () => ({
   renderPdfToImages: (...args: unknown[]) => renderPdfToImagesMock(...args),
 }));
 
-jest.mock("../src/services/excelExtractor.js", () => ({
-  extractExcelData: (...args: unknown[]) => extractExcelDataMock(...args),
-  formatExcelAsMarkdown: (...args: unknown[]) => formatExcelAsMarkdownMock(...args),
+jest.mock("../src/tools/convertExcelToImages.js", () => ({
+  convertExcelToImages: (...args: unknown[]) => convertExcelToImagesMock(...args),
+}));
+
+jest.mock("../src/services/copilotCli.js", () => ({
+  convertImageToMarkdown: (...args: unknown[]) => convertImageToMarkdownMock(...args),
+  getGithubToken: (...args: unknown[]) => getGithubTokenMock(...args),
 }));
 
 describe("other tools", () => {
@@ -81,22 +86,59 @@ describe("other tools", () => {
     });
   });
 
-  it("extracts Excel text in json and markdown forms", async () => {
-    const extracted = { sheets: [{ name: "Sheet1", rows: [] }], sheetCount: 1 };
-    extractExcelDataMock.mockResolvedValue(extracted);
-    formatExcelAsMarkdownMock.mockReturnValue("## Sheet: Sheet1");
+  it("extracts Excel text via image-based pipeline", async () => {
+    getGithubTokenMock.mockReturnValue("test-token");
+    convertExcelToImagesMock.mockResolvedValue({
+      sourceType: "excel",
+      images: ["/tmp/out/page-1.png", "/tmp/out/page-2.png"],
+      pageCount: 2,
+      renderStrategy: "libreoffice-cli",
+    });
+    convertImageToMarkdownMock
+      .mockResolvedValueOnce("# Page 1 content")
+      .mockResolvedValueOnce("# Page 2 content");
 
     const { extractExcelText } = await import("../src/tools/extractExcelText.js");
-    await expect(extractExcelText({ filePath: "/tmp/book.xlsx", format: "json" })).resolves.toEqual({
-      sourceType: "excel",
-      textFormat: "json",
-      content: extracted,
-    });
-    await expect(extractExcelText({ filePath: "/tmp/book.xlsx" })).resolves.toEqual({
+    const result = await extractExcelText({ filePath: "/tmp/book.xlsx" });
+
+    expect(result).toEqual({
       sourceType: "excel",
       textFormat: "markdown",
-      content: "## Sheet: Sheet1",
+      content: "## Page 1\n\n# Page 1 content\n\n## Page 2\n\n# Page 2 content",
+      images: ["/tmp/out/page-1.png", "/tmp/out/page-2.png"],
+      pageCount: 2,
     });
+    expect(convertExcelToImagesMock).toHaveBeenCalledWith({
+      filePath: "/tmp/book.xlsx",
+      dpi: 150,
+      sheetNames: undefined,
+    });
+    expect(convertImageToMarkdownMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("extracts single-page Excel without page headings", async () => {
+    getGithubTokenMock.mockReturnValue("test-token");
+    convertExcelToImagesMock.mockResolvedValue({
+      sourceType: "excel",
+      images: ["/tmp/out/page-1.png"],
+      pageCount: 1,
+      renderStrategy: "libreoffice-cli",
+    });
+    convertImageToMarkdownMock.mockResolvedValueOnce("# Single page");
+
+    const { extractExcelText } = await import("../src/tools/extractExcelText.js");
+    const result = await extractExcelText({ filePath: "/tmp/book.xlsx" });
+
+    expect(result.content).toBe("# Single page");
+  });
+
+  it("raises an error when GitHub token is missing for Excel text extraction", async () => {
+    getGithubTokenMock.mockReturnValue(null);
+
+    const { extractExcelText } = await import("../src/tools/extractExcelText.js");
+    await expect(extractExcelText({ filePath: "/tmp/book.xlsx" })).rejects.toMatchObject({
+      code: ErrorCode.GITHUB_TOKEN_MISSING,
+    } as Partial<AppError>);
   });
 
   it("raises file and capability errors from the tools", async () => {

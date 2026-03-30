@@ -1,41 +1,53 @@
-import { fileExists } from "../utils/fs.js";
 import { AppError, ErrorCode } from "../types/errors.js";
-import { extractExcelData, formatExcelAsMarkdown } from "../services/excelExtractor.js";
+import { convertExcelToImages } from "./convertExcelToImages.js";
+import { convertImageToMarkdown, getGithubToken } from "../services/copilotCli.js";
+import { logger } from "../utils/logger.js";
 
 export interface ExtractExcelTextInput {
   filePath: string;
-  format?: "markdown" | "json";
-  includeFormulas?: boolean;
-  includeMergedCells?: boolean;
+  dpi?: number;
+  sheetNames?: string[];
 }
 
 export interface ExtractExcelTextOutput {
   sourceType: "excel";
-  textFormat: "markdown" | "json";
-  content: string | object;
+  textFormat: "markdown";
+  content: string;
+  images: string[];
+  pageCount: number;
 }
 
 export async function extractExcelText(input: ExtractExcelTextInput): Promise<ExtractExcelTextOutput> {
-  const { filePath, format = "markdown", includeFormulas = false, includeMergedCells = false } = input;
+  const { filePath, dpi = 150, sheetNames } = input;
 
-  if (!(await fileExists(filePath))) {
-    throw new AppError(ErrorCode.FILE_NOT_FOUND, `File not found: ${filePath}`);
+  const token = getGithubToken();
+  if (!token) {
+    throw new AppError(ErrorCode.GITHUB_TOKEN_MISSING, "GitHub token is required for image-to-Markdown conversion");
   }
 
-  const data = await extractExcelData(filePath, includeFormulas, includeMergedCells);
+  logger.info("Extracting Excel text via image-based pipeline", { filePath });
 
-  if (format === "json") {
-    return {
-      sourceType: "excel",
-      textFormat: "json",
-      content: data,
-    };
+  const imageResult = await convertExcelToImages({
+    filePath,
+    dpi,
+    sheetNames,
+  });
+
+  const markdowns: string[] = [];
+  for (const imagePath of imageResult.images) {
+    const md = await convertImageToMarkdown(imagePath, token);
+    markdowns.push(md);
   }
 
-  const markdown = formatExcelAsMarkdown(data);
+  const content = markdowns.length === 1
+    ? markdowns[0]
+    : markdowns.map((md, i) => `## Page ${i + 1}\n\n${md}`).join("\n\n");
+
   return {
     sourceType: "excel",
     textFormat: "markdown",
-    content: markdown,
+    content,
+    images: imageResult.images,
+    pageCount: imageResult.pageCount,
   };
 }
