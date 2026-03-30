@@ -1,10 +1,21 @@
 {
-  "name": "office-to-md-mcp",
-  "version": "1.0.0",
+  "name": "@akrym1582/office-to-md-mcp",
+  "version": "0.0.1",
   "description": "MCP server to convert Office/PDF documents into images and Markdown",
   "main": "dist/server.js",
   "bin": {
     "office-to-md-mcp": "dist/server.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
     "build": "tsc",
@@ -12,8 +23,32 @@
     "dev": "npm run build && node dist/server.js",
     "test": "jest",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akrym1582/office-to-md-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "office",
+    "word",
+    "excel",
+    "pdf",
+    "markdown",
+    "document-conversion",
+    "llm",
+    "ai"
+  ],
+  "author": "akrym1582",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/akrym1582/office-to-md-mcp/issues"
+  },
+  "homepage": "https://github.com/akrym1582/office-to-md-mcp#readme",
   "dependencies": {
     "@github/copilot-sdk": "^0.2.0",
     "@modelcontextprotocol/sdk": "^1.0.0",

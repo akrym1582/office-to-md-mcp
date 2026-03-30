@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const path = require("path");
 const { logger } = require("./utils/logger.js");
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
