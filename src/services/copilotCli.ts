@@ -7,6 +7,8 @@ import { logger } from "../utils/logger.js";
 const IMAGE_PROMPT =
   "Convert this image to Markdown. Preserve all text, formatting, tables, and structure as closely as possible. Output only the Markdown content.";
 
+const DEFAULT_MODEL = "gpt-5.4-mini";
+
 export function getGithubToken(): string | null {
   return process.env.GITHUB_TOKEN ?? process.env.github_token ?? null;
 }
@@ -22,7 +24,8 @@ function getMimeType(imagePath: string): string {
 export async function convertImageToMarkdown(
   imagePath: string,
   token: string,
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
+  model = process.env.COPILOT_MODEL ?? DEFAULT_MODEL
 ): Promise<string> {
   logger.info("Converting image to Markdown with GitHub Copilot SDK", { imagePath });
 
@@ -38,7 +41,7 @@ export async function convertImageToMarkdown(
 
   try {
     const session = await client.createSession({
-      model: "gpt-4o",
+      model,
       onPermissionRequest: approveAll,
     });
 
