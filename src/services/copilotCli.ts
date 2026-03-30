@@ -1,30 +1,79 @@
-import { execCommand } from "../utils/exec.js";
+import { readFile } from "fs/promises";
+import path from "path";
+import { CopilotClient, approveAll } from "@github/copilot-sdk";
 import { AppError, ErrorCode } from "../types/errors.js";
 import { logger } from "../utils/logger.js";
 
-export type CopilotProvider = "github-copilot-cli" | "unavailable";
+const IMAGE_PROMPT =
+  "Convert this image to Markdown. Preserve all text, formatting, tables, and structure as closely as possible. Output only the Markdown content.";
+
+const DEFAULT_MODEL = "gpt-5.4-mini";
 
 export function getGithubToken(): string | null {
   return process.env.GITHUB_TOKEN ?? process.env.github_token ?? null;
 }
 
+function getMimeType(imagePath: string): string {
+  const ext = path.extname(imagePath).toLowerCase().slice(1);
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "gif") return "image/gif";
+  if (ext === "webp") return "image/webp";
+  return "image/png";
+}
+
 export async function convertImageToMarkdown(
   imagePath: string,
-  copilotCliPath: string,
   token: string,
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
+  model = process.env.COPILOT_MODEL ?? DEFAULT_MODEL
 ): Promise<string> {
-  logger.info("Converting image to Markdown with Copilot CLI", { imagePath });
-  const result = await execCommand(
-    copilotCliPath,
-    ["api", "copilot", "--method", "POST", "--field", `image=@${imagePath}`],
-    { timeoutMs, env: { ...process.env, GITHUB_TOKEN: token } }
-  ).catch((err) => {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT")
-      throw new AppError(ErrorCode.COPILOT_CLI_NOT_FOUND, `GitHub Copilot CLI not found: ${copilotCliPath}`);
-    throw err;
+  logger.info("Converting image to Markdown with GitHub Copilot SDK", { imagePath });
+
+  const imageBuffer = await readFile(imagePath).catch(() => {
+    throw new AppError(ErrorCode.FILE_NOT_FOUND, `Image file not found: ${imagePath}`);
   });
-  if (result.exitCode !== 0)
-    throw new AppError(ErrorCode.COPILOT_MARKDOWN_FAILED, "Copilot CLI failed to convert image", { stderr: result.stderr, exitCode: result.exitCode });
-  return result.stdout.trim();
+  const base64Image = imageBuffer.toString("base64");
+  const mimeType = getMimeType(imagePath);
+  const displayName = path.basename(imagePath);
+
+  const client = new CopilotClient({ githubToken: token });
+  await client.start();
+
+  try {
+    const session = await client.createSession({
+      model,
+      onPermissionRequest: approveAll,
+    });
+
+    try {
+      const response = await session.sendAndWait(
+        {
+          prompt: IMAGE_PROMPT,
+          attachments: [
+            {
+              type: "blob",
+              data: base64Image,
+              mimeType,
+              displayName,
+            },
+          ],
+        },
+        timeoutMs
+      );
+
+      if (!response?.data?.content) {
+        throw new AppError(ErrorCode.COPILOT_MARKDOWN_FAILED, "No Markdown content received from GitHub Copilot");
+      }
+      return response.data.content.trim();
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      throw new AppError(ErrorCode.COPILOT_MARKDOWN_FAILED, "GitHub Copilot SDK failed to convert image to Markdown", {
+        message: String(err),
+      });
+    } finally {
+      await session.disconnect();
+    }
+  } finally {
+    await client.stop();
+  }
 }

@@ -12,8 +12,6 @@ export interface Capabilities {
   pdfRenderer: boolean;
   pdfRendererPath: string | null;
   pdfRendererTool: "pdftoppm" | "convert" | null;
-  copilotCli: boolean;
-  copilotCliPath: string | null;
   githubToken: boolean;
 }
 
@@ -32,12 +30,11 @@ async function findExecutable(names: string[]): Promise<string | null> {
 }
 
 export async function detectCapabilities(unoHelperPath?: string): Promise<Capabilities> {
-  const [loPath, pyPath, pdftoppmPath, convertPath, copilotPath] = await Promise.all([
+  const [loPath, pyPath, pdftoppmPath, convertPath] = await Promise.all([
     findExecutable(["soffice", "libreoffice"]),
     findExecutable(["python3", "python"]),
     findExecutable(["pdftoppm"]),
     findExecutable(["convert"]),
-    findExecutable(["gh"]),
   ]);
 
   let pythonVersion: string | null = null;
@@ -74,8 +71,6 @@ export async function detectCapabilities(unoHelperPath?: string): Promise<Capabi
     pdfRenderer: !!pdfRendererPath,
     pdfRendererPath,
     pdfRendererTool,
-    copilotCli: !!copilotPath,
-    copilotCliPath: copilotPath,
     githubToken,
   };
 
