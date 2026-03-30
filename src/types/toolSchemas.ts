@@ -3,7 +3,7 @@ import { z } from "zod";
 function createPathInputSchema(description: string) {
   return {
     filePath: z.string().optional().describe(description),
-    path: z.string().optional().describe(`Alias of filePath. ${description}`),
+    path: z.string().optional().describe(`Alias for filePath. ${description}`),
   };
 }
 
