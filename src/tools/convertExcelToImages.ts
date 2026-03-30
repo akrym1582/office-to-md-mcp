@@ -7,14 +7,16 @@ import { convertExcelToPdfViaPython } from "../services/officePythonBridge.js";
 import { convertToPdfWithLibreOffice } from "../services/libreOfficeCli.js";
 import { renderPdfToImages } from "../services/pdfRenderer.js";
 import { logger } from "../utils/logger.js";
+import { resolveFilePathInput } from "../utils/toolInput.js";
 
-export interface ConvertExcelToImagesInput { filePath: string; outputDir?: string; dpi?: number; sheetNames?: string[]; keepPdf?: boolean; }
+export interface ConvertExcelToImagesInput { filePath?: string; path?: string; outputDir?: string; dpi?: number; sheetNames?: string[]; keepPdf?: boolean; }
 export interface ConvertExcelToImagesOutput { sourceType: "excel"; pdfPath?: string; images: string[]; pageCount: number; renderStrategy: "libreoffice-uno-print-area" | "libreoffice-cli"; }
 
 const UNO_HELPER_PATH = path.resolve(__dirname, "../../python/excel_to_pdf_uno.py");
 
 export async function convertExcelToImages(input: ConvertExcelToImagesInput): Promise<ConvertExcelToImagesOutput> {
-  const { filePath, dpi = 150, keepPdf = false, sheetNames } = input;
+  const filePath = resolveFilePathInput(input);
+  const { dpi = 150, keepPdf = false, sheetNames } = input;
   if (!(await fileExists(filePath))) throw new AppError(ErrorCode.FILE_NOT_FOUND, `File not found: ${filePath}`);
   const caps = await detectCapabilities(UNO_HELPER_PATH);
   if (!caps.libreOffice) throw new AppError(ErrorCode.LIBREOFFICE_NOT_FOUND, "LibreOffice not found.");

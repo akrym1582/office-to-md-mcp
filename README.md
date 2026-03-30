@@ -72,6 +72,8 @@ The server communicates over **stdio** using the MCP protocol.
 
 ## MCP Tool Reference
 
+All file-based tools accept either `filePath` or `path` for the input document.
+
 ### `convert_excel_to_images`
 
 Converts an Excel workbook to PNG page images.  

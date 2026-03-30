@@ -1,9 +1,11 @@
 import { fileExists } from "../utils/fs.js";
 import { AppError, ErrorCode } from "../types/errors.js";
 import { extractExcelData, formatExcelAsMarkdown } from "../services/excelExtractor.js";
+import { resolveFilePathInput } from "../utils/toolInput.js";
 
 export interface ExtractExcelTextInput {
-  filePath: string;
+  filePath?: string;
+  path?: string;
   format?: "markdown" | "json";
   includeFormulas?: boolean;
   includeMergedCells?: boolean;
@@ -16,7 +18,8 @@ export interface ExtractExcelTextOutput {
 }
 
 export async function extractExcelText(input: ExtractExcelTextInput): Promise<ExtractExcelTextOutput> {
-  const { filePath, format = "markdown", includeFormulas = false, includeMergedCells = false } = input;
+  const filePath = resolveFilePathInput(input);
+  const { format = "markdown", includeFormulas = false, includeMergedCells = false } = input;
 
   if (!(await fileExists(filePath))) {
     throw new AppError(ErrorCode.FILE_NOT_FOUND, `File not found: ${filePath}`);
