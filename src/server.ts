@@ -1,7 +1,5 @@
-// @ts-nocheck
-import * as path from "path";
-import { logger } from "./utils/logger.js";
-
+const path = require("path");
+const { logger } = require("./utils/logger.js");
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
 const { detectCapabilities } = require("./services/capabilityDetector.js");
