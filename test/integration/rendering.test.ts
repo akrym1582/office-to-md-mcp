@@ -198,7 +198,7 @@ describe("Integration: capabilityDetector", () => {
           fs.closeSync(fd);
           expect(header[0]).toBe(0x89);
           expect(header[1]).toBe(0x50);
-          expect(header[2]).toBe(0x4e);
+          expect(header[2]).toBe(0x4E);
           expect(header[3]).toBe(0x47);
         }
       },
