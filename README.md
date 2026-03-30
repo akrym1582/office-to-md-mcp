@@ -44,18 +44,19 @@ This approach preserves not only cell data but also shapes, embedded images, and
 | [LibreOffice](https://www.libreoffice.org/) (`soffice`) | Excel/Word → PDF | For image conversion |
 | [poppler-utils](https://poppler.freedesktop.org/) (`pdftoppm`) | PDF → PNG | For image conversion |
 | Python 3 | Excel UNO helper | For best Excel rendering |
+| [GitHub CLI](https://cli.github.com/) (`gh`) with GitHub Copilot CLI access | Required by the GitHub Copilot SDK integration | Required for `extract_excel_text` |
 | `GITHUB_TOKEN` env var | Copilot SDK auth | Required for `extract_excel_text` |
 
 ### Install system dependencies (Ubuntu/Debian)
 
 ```bash
-sudo apt-get install -y libreoffice poppler-utils python3
+sudo apt-get install -y libreoffice poppler-utils python3 gh
 ```
 
 ### Install system dependencies (macOS)
 
 ```bash
-brew install libreoffice poppler python3
+brew install libreoffice poppler python3 gh
 ```
 
 ---
