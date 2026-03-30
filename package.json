@@ -1,6 +1,6 @@
 {
   "name": "@akrym1582/office-to-md-mcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "MCP server to convert Office/PDF documents into images and Markdown",
   "main": "dist/server.js",
   "bin": {
