@@ -11,11 +11,28 @@ A TypeScript **Model Context Protocol (MCP) server** that converts Excel, Word, 
 | `convert_excel_to_images` | `.xlsx` / `.xls` | PNG images per page |
 | `convert_word_to_images` | `.docx` / `.doc` | PNG images per page |
 | `convert_pdf_to_images` | `.pdf` | PNG images per page |
-| `extract_excel_text` | `.xlsx` / `.xls` | Markdown table or JSON |
+| `extract_excel_text` | `.xlsx` / `.xls` | Markdown (via image-based conversion) |
 | `extract_word_text` | `.docx` | Plain text or Markdown |
-| `convert_pdf_images_to_markdown` | `.pdf` | Markdown via GitHub Copilot SDK |
-| `render_document` | any above | Images + text/Markdown unified |
 | `get_capabilities` | — | Runtime dependency status |
+
+### `extract_excel_text` Conversion Pipeline
+
+`extract_excel_text` converts Excel files to Markdown through the following image-based pipeline:
+
+```
+Excel (.xlsx/.xls)
+  → Adjust print area and convert to PDF (Python UNO / LibreOffice)
+    → Render PDF pages as PNG images (pdftoppm / ImageMagick)
+      → Convert images to Markdown (GitHub Copilot SDK — gpt-5.4-mini)
+```
+
+This approach preserves not only cell data but also shapes, embedded images, and complex layouts with high fidelity.
+
+> **⚠️ GitHub Copilot Premium Requests**
+>
+> `extract_excel_text` uses GitHub Copilot SDK's **gpt-5.4-mini** model for image-to-Markdown conversion.
+> Each tool invocation consumes **GitHub Copilot Premium Requests**.
+> The number of requests increases with the number of pages in the workbook.
 
 ---
 
@@ -27,7 +44,7 @@ A TypeScript **Model Context Protocol (MCP) server** that converts Excel, Word, 
 | [LibreOffice](https://www.libreoffice.org/) (`soffice`) | Excel/Word → PDF | For image conversion |
 | [poppler-utils](https://poppler.freedesktop.org/) (`pdftoppm`) | PDF → PNG | For image conversion |
 | Python 3 | Excel UNO helper | For best Excel rendering |
-| `GITHUB_TOKEN` env var | Copilot SDK auth | Optional |
+| `GITHUB_TOKEN` env var | Copilot SDK auth | Required for `extract_excel_text` |
 
 ### Install system dependencies (Ubuntu/Debian)
 
@@ -130,14 +147,13 @@ Renders each PDF page as a PNG image.
 
 ### `extract_excel_text`
 
-Extracts cell data from an Excel workbook.
+Converts an Excel workbook to Markdown via an image-based pipeline (Excel → print-area adjustment → PDF → images → Markdown). Handles shapes, embedded images, and complex layouts. Requires `GITHUB_TOKEN`.
 
 ```json
 {
   "filePath": "/path/to/file.xlsx",
-  "format": "markdown",
-  "includeFormulas": false,
-  "includeMergedCells": false
+  "dpi": 150,
+  "sheetNames": ["Sheet1"]
 }
 ```
 
@@ -146,9 +162,13 @@ Response:
 {
   "sourceType": "excel",
   "textFormat": "markdown",
-  "content": "## Sheet: Sheet1\n\n| Name | Age |\n| --- | --- |\n| Alice | 30 |"
+  "content": "## Page 1\n\n| Name | Age |\n| --- | --- |\n| Alice | 30 |",
+  "images": ["/tmp/excel-images-xxx/page-1.png"],
+  "pageCount": 1
 }
 ```
+
+> Image-to-Markdown conversion uses GitHub Copilot SDK (default model: `gpt-5.4-mini`) and consumes Premium Requests.
 
 ---
 
@@ -162,48 +182,6 @@ Extracts text from a `.docx` file using [mammoth](https://github.com/mwilliamson
   "format": "markdown"
 }
 ```
-
----
-
-### `convert_pdf_images_to_markdown`
-
-Converts PDF pages to Markdown using the GitHub Copilot SDK (requires `GITHUB_TOKEN`).
-
-```json
-{
-  "filePath": "/path/to/file.pdf",
-  "dpi": 150,
-  "mergePages": true,
-  "preservePageHeadings": true
-}
-```
-
-Response:
-```json
-{
-  "sourceType": "pdf",
-  "markdown": "## Page 1\n\n...",
-  "provider": "github-copilot-sdk"
-}
-```
-
-If the token is unavailable, `provider` will be `"unavailable"` and no error is thrown.
-
----
-
-### `render_document`
-
-Unified tool that auto-detects file type and routes to the appropriate pipeline.
-
-```json
-{
-  "filePath": "/path/to/file.xlsx",
-  "outputMode": "all",
-  "dpi": 150
-}
-```
-
-`outputMode` options: `"images"` | `"text"` | `"markdown"` | `"all"`
 
 ---
 
@@ -242,10 +220,7 @@ Example response:
 │   │   ├── convertExcelToImages.ts
 │   │   ├── convertWordToImages.ts
 │   │   ├── convertPdfToImages.ts
-│   │   ├── extractExcelText.ts
-│   │   ├── extractWordText.ts
-│   │   ├── convertPdfImagesToMarkdown.ts
-│   │   └── renderDocument.ts
+│   │   └── extractExcelText.ts
 │   ├── services/                      # Business logic / external integrations
 │   │   ├── capabilityDetector.ts
 │   │   ├── copilotCli.ts
